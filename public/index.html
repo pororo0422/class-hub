@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>우리 반 알림장</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Nanum+Pen+Script&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ============================ 헤더 ============================ -->
+<header class="masthead">
+  <div class="masthead__inner">
+    <div class="masthead__left">
+      <p class="eyebrow" id="todayLine">오늘</p>
+      <h1 class="wordmark" id="classNameEl">우리 반</h1>
+      <p class="wordmark__sub">알림장</p>
+    </div>
+
+    <div class="masthead__right">
+      <button class="chip" id="nameBtn" type="button">
+        <span class="chip__label">이름</span>
+        <span class="chip__value" id="nameValue">설정하기</span>
+      </button>
+      <button class="chip chip--admin" id="adminBtn" type="button">
+        <span class="chip__label">모드</span>
+        <span class="chip__value" id="adminValue">학생</span>
+      </button>
+    </div>
+  </div>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab is-active" data-tab="today" type="button">오늘</button>
+    <button class="tab" data-tab="notice" type="button">공지</button>
+    <button class="tab" data-tab="homework" type="button">숙제</button>
+    <button class="tab" data-tab="poll" type="button">투표</button>
+    <button class="tab" data-tab="calendar" type="button">달력</button>
+    <button class="tab" data-tab="suggest" type="button">건의함</button>
+  </nav>
+</header>
+
+<main class="page">
+
+  <!-- ========================== 오늘 ========================== -->
+  <section class="view is-active" id="view-today">
+    <div class="headline">
+      <p class="annot">한눈에 보기</p>
+      <h2 class="headline__text" id="todayHeadline">오늘 뭐 있더라</h2>
+    </div>
+    <div id="todayBoard" class="stack"></div>
+  </section>
+
+  <!-- ========================== 공지 ========================== -->
+  <section class="view" id="view-notice">
+    <div class="view__head">
+      <h2 class="view__title">공지</h2>
+      <button class="btn btn--write" data-open-form="noticeForm" type="button">공지 쓰기</button>
+    </div>
+
+    <form class="composer" id="noticeForm" hidden>
+      <label class="field">
+        <span>제목</span>
+        <input name="title" maxlength="120" placeholder="예) 다음 주 체육대회 준비물" required />
+      </label>
+      <label class="field">
+        <span>내용</span>
+        <textarea name="body" rows="4" placeholder="자세한 내용을 적어 주세요"></textarea>
+      </label>
+      <label class="check">
+        <input type="checkbox" name="pinned" />
+        <span>맨 위에 고정</span>
+      </label>
+      <div class="composer__foot">
+        <button class="btn btn--ghost" type="button" data-close-form>취소</button>
+        <button class="btn" type="submit">올리기</button>
+      </div>
+    </form>
+
+    <div id="noticeList" class="stack"></div>
+  </section>
+
+  <!-- ========================== 숙제 ========================== -->
+  <section class="view" id="view-homework">
+    <div class="view__head">
+      <h2 class="view__title">숙제</h2>
+      <button class="btn btn--write" data-open-form="homeworkForm" type="button">숙제 올리기</button>
+    </div>
+
+    <form class="composer" id="homeworkForm" hidden>
+      <div class="field-row">
+        <label class="field">
+          <span>과목</span>
+          <input name="subject" maxlength="20" placeholder="수학" />
+        </label>
+        <label class="field">
+          <span>마감</span>
+          <input name="due" type="date" required />
+        </label>
+      </div>
+      <label class="field">
+        <span>내용</span>
+        <input name="title" maxlength="120" placeholder="예) 미적분 워크북 42~48쪽" required />
+      </label>
+      <label class="field">
+        <span>메모</span>
+        <textarea name="detail" rows="2" placeholder="채점까지 해오기 / 조별 제출 등"></textarea>
+      </label>
+      <div class="composer__foot">
+        <button class="btn btn--ghost" type="button" data-close-form>취소</button>
+        <button class="btn" type="submit">올리기</button>
+      </div>
+    </form>
+
+    <div id="homeworkList" class="stack"></div>
+  </section>
+
+  <!-- ========================== 투표 ========================== -->
+  <section class="view" id="view-poll">
+    <div class="view__head">
+      <h2 class="view__title">날짜 투표</h2>
+      <button class="btn btn--write" data-open-form="pollForm" type="button">투표 만들기</button>
+    </div>
+
+    <form class="composer" id="pollForm" hidden>
+      <label class="field">
+        <span>무슨 일정인가요</span>
+        <input name="title" maxlength="120" placeholder="예) 반 바베큐 파티" required />
+      </label>
+      <label class="field">
+        <span>설명</span>
+        <textarea name="description" rows="2" placeholder="되는 날 다 골라 주세요. 제일 많이 겹치는 날로 정할게요."></textarea>
+      </label>
+
+      <div class="field">
+        <span>후보 날짜</span>
+        <div id="optionRows" class="option-rows"></div>
+        <button class="btn btn--ghost btn--sm" type="button" id="addOptionBtn">＋ 후보 추가</button>
+      </div>
+
+      <div class="composer__foot">
+        <button class="btn btn--ghost" type="button" data-close-form>취소</button>
+        <button class="btn" type="submit">투표 열기</button>
+      </div>
+    </form>
+
+    <div id="pollList" class="stack"></div>
+  </section>
+
+  <!-- ========================== 달력 ========================== -->
+  <section class="view" id="view-calendar">
+    <div class="view__head">
+      <h2 class="view__title">달력</h2>
+      <button class="btn btn--write" data-open-form="eventForm" type="button">일정 추가</button>
+    </div>
+
+    <form class="composer" id="eventForm" hidden>
+      <label class="field">
+        <span>일정 이름</span>
+        <input name="title" maxlength="120" placeholder="예) 중간고사 시작" required />
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span>날짜</span>
+          <input name="date" type="date" required />
+        </label>
+        <label class="field">
+          <span>시간</span>
+          <input name="time" type="time" />
+        </label>
+      </div>
+      <label class="field">
+        <span>장소</span>
+        <input name="place" maxlength="60" placeholder="운동장 / 3반 교실" />
+      </label>
+      <div class="composer__foot">
+        <button class="btn btn--ghost" type="button" data-close-form>취소</button>
+        <button class="btn" type="submit">추가</button>
+      </div>
+    </form>
+
+    <div class="cal">
+      <div class="cal__bar">
+        <button class="cal__nav" id="prevMonth" type="button" aria-label="이전 달">‹</button>
+        <p class="cal__month" id="calMonth"></p>
+        <button class="cal__nav" id="nextMonth" type="button" aria-label="다음 달">›</button>
+      </div>
+      <div class="cal__dows">
+        <span class="is-sun">일</span><span>월</span><span>화</span><span>수</span>
+        <span>목</span><span>금</span><span class="is-sat">토</span>
+      </div>
+      <div class="cal__grid" id="calGrid"></div>
+    </div>
+
+    <div id="dayDetail" class="stack"></div>
+  </section>
+
+  <!-- ========================== 건의함 ========================== -->
+  <section class="view" id="view-suggest">
+    <div class="view__head">
+      <h2 class="view__title">건의함</h2>
+    </div>
+
+    <form class="composer" id="suggestForm">
+      <label class="field">
+        <span>하고 싶은 말</span>
+        <textarea name="body" rows="3" placeholder="반에 바라는 점, 아이디어, 불편한 점 아무거나" required></textarea>
+      </label>
+      <div class="composer__foot composer__foot--split">
+        <label class="check">
+          <input type="checkbox" name="anonymous" checked />
+          <span>익명으로 보내기</span>
+        </label>
+        <button class="btn" type="submit">보내기</button>
+      </div>
+    </form>
+
+    <div id="suggestList" class="stack"></div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p>우리 반 알림장 · 베타</p>
+</footer>
+
+<!-- ======================== 이름 설정 ======================== -->
+<dialog class="modal" id="nameModal">
+  <form method="dialog" class="modal__inner" id="nameForm">
+    <h3 class="modal__title">이름 알려줘</h3>
+    <p class="modal__desc">숙제 체크랑 투표할 때 누구 표인지 구분하려고 써요.</p>
+    <input class="modal__input" name="name" maxlength="40" placeholder="노유원" required />
+    <div class="modal__foot">
+      <button class="btn btn--ghost" value="cancel" type="submit" formnovalidate>취소</button>
+      <button class="btn" id="nameSave" value="save" type="submit">저장</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ======================== 반장 모드 ======================== -->
+<dialog class="modal" id="adminModal">
+  <form method="dialog" class="modal__inner" id="adminForm">
+    <h3 class="modal__title">반장 모드</h3>
+    <p class="modal__desc">공지·숙제·일정을 올리고 지울 수 있어요.</p>
+    <input class="modal__input" name="key" type="password" placeholder="비밀번호" required />
+    <p class="modal__error" id="adminError" hidden>비밀번호가 달라요.</p>
+    <div class="modal__foot">
+      <button class="btn btn--ghost" value="cancel" type="submit" formnovalidate>취소</button>
+      <button class="btn" value="save" type="submit">들어가기</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
