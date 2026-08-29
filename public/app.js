@@ -3,7 +3,9 @@
    서버에서 /api/state 로 전체 데이터를 받아서 탭별로 그려주는 구조.
    ================================================================== */
 
-let state = null;      // 서버에서 받아온 전체 데이터
+import { api, startRealtime, configReady } from "./data.js";
+
+let state = null;      // Firebase에서 받아온 전체 데이터
 let myName = "";       // 내 이름
 let adminKey = "";     // 반장 모드 비밀번호 (맞을 때만 채워짐)
 let activeTab = "today";
@@ -84,29 +86,23 @@ function fmtWhen(dateStr, time) {
 }
 
 /* ------------------------------------------------------------------
- * 서버 통신
+ * 데이터 (Firebase)
+ *
+ * 예전엔 여기서 fetch로 우리 서버(server.js)를 불렀어. 이제는 data.js가
+ * Firestore를 상대해. 부르는 방법(api)은 똑같이 맞춰놔서 아래 화면
+ * 코드는 그대로 씀.
  * ---------------------------------------------------------------- */
 
-async function api(method, url, body) {
-  const headers = { "Content-Type": "application/json" };
-  if (adminKey) headers["x-admin-key"] = adminKey;
-
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "저장하지 못했어요. 다시 해볼래?");
-  return data;
-}
-
-async function refresh() {
-  state = await api("GET", "/api/state");
+/** 새 데이터가 들어올 때마다 화면을 다시 그림 */
+function applyState(next) {
+  state = next;
   $("#classNameEl").textContent = state.className;
   document.title = `${state.className} 알림장`;
   render();
+}
+
+async function refresh() {
+  applyState(await api("GET", "/api/state"));
 }
 
 /** 요청 → 새로고침 → 안내 (에러는 토스트로) */
@@ -710,14 +706,26 @@ $("#nextMonth").addEventListener("click", () => {
  * 시작
  * ---------------------------------------------------------------- */
 
-(async function init() {
+(function init() {
   setName(store.get("classhub:name"));
   addOptionRow();
   addOptionRow();
-  try {
-    await refresh();
-  } catch (e) {
-    $("#todayBoard").innerHTML = emptyBox("서버에 연결하지 못했어요. 터미널에서 npm start 가 돌아가고 있는지 확인해 주세요.");
+
+  if (!configReady) {
+    $("#todayBoard").innerHTML = emptyBox(
+      "Firebase 설정이 아직 비어 있어요. public/firebase-config.js 를 채워 주세요.",
+    );
+    return;
   }
+
+  $("#todayBoard").innerHTML = emptyBox("불러오는 중…");
+
+  // 이제부터는 Firestore가 바뀔 때마다 applyState가 자동으로 불림.
+  // 다른 애가 공지를 올리면 새로고침 없이 내 화면에도 바로 뜸.
+  startRealtime(applyState, (msg) => {
+    toast(msg);
+    if (!state) $("#todayBoard").innerHTML = emptyBox(msg);
+  });
+
   if (!myName) $("#nameModal").showModal();
 })();

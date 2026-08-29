@@ -1,0 +1,32 @@
+# public/ 폴더를 GitHub Pages로 올려주는 자동 배포.
+# main 브랜치에 push 할 때마다 알아서 다시 배포됨.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:      # 대시보드에서 수동으로도 돌릴 수 있게
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: public        # 이 폴더 안의 파일이 사이트가 됨
+      - id: deployment
+        uses: actions/deploy-pages@v5

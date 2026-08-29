@@ -1,0 +1,31 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ================================================================
+     * 우리 반 알림장 - 접근 규칙
+     * ----------------------------------------------------------------
+     * 예전 server.js와 똑같이, 반 전체가 읽고 쓸 수 있게 열어둔 상태야.
+     * 주소를 아는 사람은 누구나 글을 쓰고 지울 수 있으니 사이트 주소는
+     * 반 단톡에만 뿌리는 게 좋아.
+     *
+     * ⚠️ Firebase가 처음에 만들어 주는 "테스트 모드" 규칙은 30일 뒤에
+     *    만료돼서 사이트가 어느 날 갑자기 멈춰. 이 파일 내용으로 꼭
+     *    덮어쓴 다음 게시(Publish)할 것.
+     * ================================================================ */
+
+    // 반 이름 - 아무나 바꿀 수 있지만 글자 수는 제한
+    match /meta/{docId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.className is string
+                            && request.resource.data.className.size() <= 30;
+    }
+
+    match /notices/{id}     { allow read, write: if true; }
+    match /homework/{id}    { allow read, write: if true; }
+    match /polls/{id}       { allow read, write: if true; }
+    match /events/{id}      { allow read, write: if true; }
+    match /suggestions/{id} { allow read, write: if true; }
+  }
+}
