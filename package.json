@@ -1,16 +1,13 @@
 {
   "name": "class-hub",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "우리 반 알림장 - 공지, 숙제, 날짜 투표, 달력, 건의함",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"
   },
-  "dependencies": {
-    "express": "^4.22.2"
-  },
   "engines": {
-    "node": ">=22"
+    "node": ">=18"
   }
 }

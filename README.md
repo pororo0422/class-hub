@@ -2,7 +2,9 @@
 
 공지 · 숙제 · 날짜 투표 · 달력 · 건의함이 들어간 학급용 웹사이트.
 
-**GitHub Pages(정적 사이트) + Firebase Firestore(데이터)** 구조라 서버가 따로 없고,
+**https://pororo0422.github.io/class-hub/**
+
+GitHub Pages(정적 사이트) + Firebase Firestore(데이터) 구조라 서버가 따로 없고,
 잠들지도 않고, 돈도 안 들어. 누가 글을 올리면 다른 애들 화면에 새로고침 없이 바로 뜸.
 
 ---
@@ -46,11 +48,11 @@ Firebase가 처음에 만들어 주는 "테스트 모드" 규칙은 **30일 뒤�
 ## 로컬에서 고칠 때
 
 ```bash
-npm install
 npm start
 ```
 
-http://localhost:3000 을 열면 돼. 데이터는 로컬에서도 Firebase를 보기 때문에
+http://localhost:3000 을 열면 돼. 설치할 건 없어 — 딸린 패키지가 하나도 없어서
+node만 있으면 바로 돌아가. 데이터는 로컬에서도 Firebase를 보기 때문에
 **켜놓은 화면과 배포된 사이트가 같은 데이터를 씀.** 연습용으로 막 눌러보면
 반 애들 화면에도 그대로 보이니까 주의.
 
@@ -69,11 +71,11 @@ http://localhost:3000 을 열면 돼. 데이터는 로컬에서도 Firebase를 �
 ├─ firestore.rules         누가 뭘 읽고 쓸 수 있는지
 ├─ .github/workflows/
 │  └─ deploy.yml           push하면 자동 배포
-└─ server.js               로컬에서 볼 때 쓰는 정적 서버
+└─ server.js               로컬에서 볼 때 쓰는 정적 서버 (52줄, 딸린 패키지 없음)
 ```
 
-`server.js` 안의 `/api/...` 코드는 이제 아무도 안 불러. 파일을 그냥 내려주는
-역할만 남았어. 정리하고 싶으면 지워도 사이트는 똑같이 돌아감.
+`public/` 폴더가 사이트의 전부야. `server.js`는 로컬에서 볼 때만 쓰고
+배포에는 안 올라가.
 
 ## 어떻게 돌아가는지
 
