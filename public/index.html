@@ -127,20 +127,36 @@
     </div>
 
     <form class="composer" id="pollForm" hidden>
+      <div class="field">
+        <span>어떤 투표인가요</span>
+        <div class="kind-pick">
+          <label class="kind-pick__opt">
+            <input type="radio" name="kind" value="date" checked />
+            <span>날짜 정하기</span>
+          </label>
+          <label class="kind-pick__opt">
+            <input type="radio" name="kind" value="yesno" />
+            <span>찬반 묻기</span>
+          </label>
+        </div>
+      </div>
+
       <label class="field">
-        <span>무슨 일정인가요</span>
-        <input name="title" maxlength="120" placeholder="예) 반 바베큐 파티" required />
+        <span id="pollTitleLabel">무슨 일정인가요</span>
+        <input name="title" id="pollTitleInput" maxlength="120" placeholder="예) 반 바베큐 파티" required />
       </label>
       <label class="field">
         <span>설명</span>
-        <textarea name="description" rows="2" placeholder="되는 날 다 골라 주세요. 제일 많이 겹치는 날로 정할게요."></textarea>
+        <textarea name="description" id="pollDescInput" rows="2" placeholder="되는 날 다 골라 주세요. 제일 많이 겹치는 날로 정할게요."></textarea>
       </label>
 
-      <div class="field">
+      <div class="field" id="dateOptionsField">
         <span>후보 날짜</span>
         <div id="optionRows" class="option-rows"></div>
         <button class="btn btn--ghost btn--sm" type="button" id="addOptionBtn">＋ 후보 추가</button>
       </div>
+
+      <p class="kind-hint" id="yesnoHint" hidden>선택지는 <strong>찬성 / 반대</strong> 두 개로 자동으로 만들어져요. 누가 어느 쪽에 투표했는지는 안 보여요.</p>
 
       <div class="composer__foot">
         <button class="btn btn--ghost" type="button" data-close-form>취소</button>

@@ -1,6 +1,6 @@
 # 우리 반 알림장 (베타)
 
-공지 · 숙제 · 날짜 투표 · 달력 · 건의함이 들어간 학급용 웹사이트.
+공지 · 숙제 · 투표(날짜 정하기 / 찬반 묻기) · 달력 · 건의함이 들어간 학급용 웹사이트.
 
 **https://pororo0422.github.io/class-hub/**
 
@@ -91,12 +91,24 @@ node만 있으면 바로 돌아가. 데이터는 로컬에서도 Firebase를 보
 |---|---|
 | `notices` | 공지 — `title`, `body`, `author`, `pinned`, `createdAt` |
 | `homework` | 숙제 — `subject`, `title`, `detail`, `due`, `author`, `doneBy[]` |
-| `polls` | 날짜 투표 — `options[]`, `votes{이름:[옵션id]}`, `closed`, `decidedOptionId` |
+| `polls` | 투표 — `kind`(`date`/`yesno`), `options[]`, `votes{이름:[옵션id]}`, `closed`, `decidedOptionId` |
 | `events` | 달력 일정 — `title`, `date`, `time`, `place`, `memo` |
 | `suggestions` | 건의 — `body`, `author`, `replies[]` |
 | `meta/class` | 반 이름 (`className`) |
 
 Firebase 콘솔의 **Firestore Database → 데이터** 탭에서 직접 보고 고칠 수도 있어.
+
+## 투표 두 종류
+
+**날짜 정하기(`date`)** — 후보 날짜를 여러 개 올리고 되는 날을 다 고르는 방식.
+마감하면 확정된 날이 달력에 일정으로 자동 등록돼.
+
+**찬반 묻기(`yesno`)** — 찬성/반대 두 개만 있고 한 쪽만 고를 수 있어.
+마감하면 표가 많은 쪽으로 결론이 나고(동점이면 결론 없음), 달력엔 아무것도 안 만들어.
+**누가 어느 쪽에 투표했는지는 화면에 안 보여** — 숫자만 나와서 눈치 안 보고 고를 수 있어.
+(다만 데이터에는 이름이 남아서 Firebase 콘솔에서는 볼 수 있어. 완전한 비밀 투표는 아님.)
+
+`kind` 값이 없는 예전 투표는 전부 날짜 투표로 취급돼.
 
 ## 고칠 때 참고
 

@@ -554,3 +554,93 @@ body.is-admin .card__foot.admin-only { display: flex; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* ------------------------------------------------------------------
+ * 찬반 투표
+ * ---------------------------------------------------------------- */
+
+/* 투표 만들 때 종류 고르기 */
+.kind-pick { display: flex; gap: 8px; }
+.kind-pick__opt {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #FDFDFB;
+  cursor: pointer;
+  font-size: 14px;
+  transition: border-color .15s, background .15s;
+}
+.kind-pick__opt:hover { border-color: var(--ink-faint); }
+.kind-pick__opt:has(input:checked) { border-color: var(--ink); background: #FFFDF2; font-weight: 700; }
+.kind-pick__opt input { accent-color: var(--ink); }
+
+.kind-hint {
+  margin: -4px 0 4px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+.kind-hint strong { color: var(--ink); }
+
+/* 찬성 / 반대 버튼 */
+.yesno__row { display: flex; gap: 10px; margin-top: 14px; }
+
+.yesno {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 14px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #FDFDFB;
+  font-family: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color .15s, transform .1s;
+}
+.yesno:hover:not(:disabled) { border-color: var(--ink-faint); }
+.yesno:active:not(:disabled) { transform: translateY(1px); }
+.yesno:disabled { cursor: default; }
+.yesno:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.yesno.is-picked { border-color: var(--ink); border-width: 2px; }
+.yesno.is-won { border-color: var(--red-pen); background: #FFFCF3; }
+
+.yesno__bar {
+  position: absolute;
+  inset: auto 0 0 auto;
+  left: 0;
+  height: 100%;
+  background: var(--hl-blue);
+  opacity: .38;
+  transition: width .4s cubic-bezier(.2, .8, .3, 1);
+  z-index: 0;
+}
+.yesno--no .yesno__bar { background: #FBD5D0; opacity: .6; }
+.yesno.is-won .yesno__bar { background: var(--hl); opacity: .65; }
+
+.yesno > * { position: relative; z-index: 1; }
+.yesno__label { font-family: var(--display); font-weight: 700; font-size: 17px; }
+.yesno__count { font-size: 13px; font-weight: 700; }
+.yesno__pct { color: var(--ink-soft); font-weight: 400; }
+
+.poll__verdict {
+  margin: 12px 0 0;
+  font-family: var(--annot);
+  font-size: 19px;
+  color: var(--red-pen);
+  text-align: center;
+}
+
+@media (max-width: 380px) {
+  .kind-pick { flex-direction: column; }
+}

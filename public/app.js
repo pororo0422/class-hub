@@ -281,6 +281,66 @@ function renderPolls() {
 }
 
 function renderOnePoll(p) {
+  // kind가 없는 예전 투표는 전부 날짜 투표
+  return p.kind === "yesno" ? renderYesNoPoll(p) : renderDatePoll(p);
+}
+
+/* 찬반 투표 - 누가 어느 쪽인지는 안 보이고 숫자만 */
+function renderYesNoPoll(p) {
+  const counts = {};
+  p.options.forEach((o) => (counts[o.id] = 0));
+  Object.values(p.votes).forEach((picks) =>
+    picks.forEach((id) => { if (counts[id] !== undefined) counts[id]++; })
+  );
+
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const mine = (myName && p.votes[myName]) || [];
+  const myPick = p.options.find((o) => o.id === mine[0]);
+
+  const sides = p.options.map((o) => {
+    const c = counts[o.id];
+    const pct = total ? Math.round((c / total) * 100) : 0;
+    const picked = mine.includes(o.id);
+    const won = p.decidedOptionId === o.id;
+    return `
+      <button class="yesno ${o.label === "찬성" ? "yesno--yes" : "yesno--no"} ${picked ? "is-picked" : ""} ${won ? "is-won" : ""}"
+              type="button" ${p.closed ? "disabled" : ""}
+              data-yes-vote="${p.id}" data-option="${o.id}">
+        <span class="yesno__bar" style="width:${pct}%"></span>
+        <span class="yesno__label">${esc(o.label)}${picked ? " ✓" : ""}</span>
+        <span class="yesno__count">${c}표<span class="yesno__pct"> · ${pct}%</span></span>
+      </button>`;
+  }).join("");
+
+  let verdict = "";
+  if (p.closed) {
+    const win = p.options.find((o) => o.id === p.decidedOptionId);
+    verdict = win
+      ? `<p class="poll__verdict">${win.label === "찬성" ? "가결됐어요" : "부결됐어요"} · ${esc(win.label)}이 더 많았어요</p>`
+      : `<p class="poll__verdict">동점이라 결론이 안 났어요</p>`;
+  }
+
+  return `
+    <article class="card">
+      <div class="card__top">
+        <h3 class="card__title">${esc(p.title)}</h3>
+        <span class="tag tag--sub">찬반</span>
+        <span class="tag">${p.closed ? "마감됨" : `${Object.keys(p.votes).length}명 참여`}</span>
+      </div>
+      ${p.description ? `<p class="card__body">${esc(p.description)}</p>` : ""}
+      <div class="yesno__row">${sides}</div>
+      ${verdict}
+      <div class="card__foot">
+        ${p.closed ? "" : `
+          <button class="btn btn--sm" data-close-yesno="${p.id}" type="button">투표 마감</button>
+          <span class="poll__who">${myPick ? `내 표는 ${esc(myPick.label)} · 다시 누르면 바꿀 수 있어요` : "찬성이나 반대를 눌러 주세요"}</span>`}
+        <button class="link-btn" data-del-poll="${p.id}" type="button">지우기</button>
+      </div>
+    </article>`;
+}
+
+/* 날짜 투표 - 되는 날 여러 개 고르기 */
+function renderDatePoll(p) {
   const counts = {};
   p.options.forEach((o) => (counts[o.id] = 0));
   Object.values(p.votes).forEach((picks) =>
@@ -592,6 +652,24 @@ function addOptionRow(date = "") {
   $("#optionRows").appendChild(row);
 }
 
+/** 고른 종류에 맞춰 폼을 바꿈 (찬반이면 후보 날짜를 숨김) */
+function syncPollKind() {
+  const yesno = $("#pollForm").elements.kind.value === "yesno";
+  $("#dateOptionsField").hidden = yesno;
+  $("#yesnoHint").hidden = !yesno;
+  $("#pollTitleLabel").textContent = yesno ? "무엇을 물어볼까요" : "무슨 일정인가요";
+  $("#pollTitleInput").placeholder = yesno
+    ? "예) 체육대회 종목 피구로 바꿀까요?"
+    : "예) 반 바베큐 파티";
+  $("#pollDescInput").placeholder = yesno
+    ? "왜 물어보는지 적어 주면 좋아요."
+    : "되는 날 다 골라 주세요. 제일 많이 겹치는 날로 정할게요.";
+}
+
+$("#pollForm").addEventListener("change", (e) => {
+  if (e.target.name === "kind") syncPollKind();
+});
+
 $("#addOptionBtn").addEventListener("click", () => addOptionRow());
 
 $("#optionRows").addEventListener("click", (e) => {
@@ -601,13 +679,17 @@ $("#optionRows").addEventListener("click", (e) => {
 $("#pollForm").addEventListener("submit", (e) => {
   e.preventDefault();
   const f = e.target;
-  const options = $$("#optionRows .option-row").map((r) => {
+  const kind = f.elements.kind.value;
+
+  // 찬반은 선택지를 서버가 만들어 주니까 안 보냄
+  const options = kind === "yesno" ? [] : $("#optionRows .option-row").map((r) => {
     const [d, t, n] = r.querySelectorAll("input");
     return { date: d.value, time: t.value, note: n.value };
   });
 
   act(async () => {
     await api("POST", "/api/polls", {
+      kind,
       title: f.elements.title.value,
       description: f.elements.description.value,
       author: myName,
@@ -616,6 +698,7 @@ $("#pollForm").addEventListener("submit", (e) => {
     f.reset(); f.hidden = true;
     $("#optionRows").innerHTML = "";
     addOptionRow(); addOptionRow();
+    syncPollKind();
   }, "투표를 열었어요.");
 });
 
@@ -656,6 +739,18 @@ document.addEventListener("click", (e) => {
     const picked = $$(`input[data-poll="${id}"]:checked`).map((c) => c.value);
     return act(() => api("POST", `/api/polls/${id}/vote`, { name: myName, optionIds: picked }), "표를 저장했어요.");
   }
+
+  /* 찬반 투표 - 누르면 바로 저장 */
+  const yesVote = t.closest("[data-yes-vote]");
+  if (yesVote) {
+    if (!myName) { toast("이름을 먼저 설정해 주세요."); return; }
+    return act(() => api("POST", `/api/polls/${yesVote.dataset.yesVote}/vote`,
+      { name: myName, optionIds: [yesVote.dataset.option] }), "표를 냈어요.");
+  }
+
+  const closeYN = t.closest("[data-close-yesno]");
+  if (closeYN && confirm("투표를 마감할까요? 표가 더 많은 쪽으로 결론이 나요."))
+    return act(() => api("POST", `/api/polls/${closeYN.dataset.closeYesno}/close`), "마감했어요.");
 
   const closePoll = t.closest("[data-close-poll]");
   if (closePoll) {
@@ -710,6 +805,7 @@ $("#nextMonth").addEventListener("click", () => {
   setName(store.get("classhub:name"));
   addOptionRow();
   addOptionRow();
+  syncPollKind();
 
   if (!configReady) {
     $("#todayBoard").innerHTML = emptyBox(

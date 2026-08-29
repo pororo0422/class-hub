@@ -224,18 +224,29 @@ async function route(method, url, b) {
     /* ---------- 날짜 투표 ---------- */
     case "POST polls": {
       const title = need(clean(b.title, 120), "투표 제목을 입력해 주세요.");
-      const options = (Array.isArray(b.options) ? b.options : [])
-        .map((o) => ({
-          id: uid(),
-          date: clean(o?.date, 10),
-          time: clean(o?.time, 5) || "",
-          note: clean(o?.note, 60) || "",
-        }))
-        .filter((o) => o.date);
 
-      if (options.length < 2) throw new Error("후보 날짜를 2개 이상 넣어 주세요.");
+      // 날짜 정하기(date)와 찬반 묻기(yesno) 두 종류
+      const kind = b.kind === "yesno" ? "yesno" : "date";
+
+      let options;
+      if (kind === "yesno") {
+        // 찬반은 선택지가 정해져 있어서 따로 안 받음
+        options = [{ id: uid(), label: "찬성" }, { id: uid(), label: "반대" }];
+      } else {
+        options = (Array.isArray(b.options) ? b.options : [])
+          .map((o) => ({
+            id: uid(),
+            date: clean(o?.date, 10),
+            time: clean(o?.time, 5) || "",
+            note: clean(o?.note, 60) || "",
+          }))
+          .filter((o) => o.date);
+
+        if (options.length < 2) throw new Error("후보 날짜를 2개 이상 넣어 주세요.");
+      }
 
       await addDoc(collection(db, "polls"), {
+        kind,
         title,
         description: clean(b.description, 500) || "",
         createdBy: clean(b.author, 40) || "익명",
@@ -258,14 +269,37 @@ async function route(method, url, b) {
       const picked = (Array.isArray(b.optionIds) ? b.optionIds : []).filter((x) =>
         valid.includes(x),
       );
+      // 찬반은 둘 중 하나만. 날짜 투표는 되는 날 여러 개 고를 수 있음
+      const final = poll.kind === "yesno" ? picked.slice(0, 1) : picked;
+
       // 이름에 점(.)이 들어가도 안 깨지게 FieldPath로 콕 집어서 저장
-      await updateDoc(doc(db, "polls", id), new FieldPath("votes", who), picked);
+      await updateDoc(doc(db, "polls", id), new FieldPath("votes", who), final);
       return { ok: true };
     }
 
     /* 투표 마감 + 확정된 날짜를 달력 일정으로 등록 (둘 다 되거나 둘 다 안 되거나) */
     case "POST polls/:id/close": {
       const poll = find("polls", id, "투표를 찾을 수 없어요.");
+
+      // 찬반은 표를 더 받은 쪽이 결론. 달력에 넣을 일정이 없음
+      if (poll.kind === "yesno") {
+        const tally = {};
+        (poll.options || []).forEach((o) => (tally[o.id] = 0));
+        Object.values(poll.votes || {}).forEach((picks) =>
+          (picks || []).forEach((oid) => {
+            if (tally[oid] !== undefined) tally[oid]++;
+          }),
+        );
+        const ranked = Object.entries(tally).sort((a, b) => b[1] - a[1]);
+        const tied = ranked.length > 1 && ranked[0][1] === ranked[1][1];
+
+        await updateDoc(doc(db, "polls", id), {
+          closed: true,
+          decidedOptionId: tied ? null : ranked[0][0], // 동점이면 결론 없음
+        });
+        return { ok: true };
+      }
+
       const chosen = (poll.options || []).find((o) => o.id === clean(b.optionId, 40));
       if (!chosen) throw new Error("확정할 날짜를 골라 주세요.");
 
