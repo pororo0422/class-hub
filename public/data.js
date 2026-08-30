@@ -49,6 +49,11 @@ function clean(v, max = 2000) {
   return s.length ? s : null;
 }
 
+/** 두 날짜(YYYY-MM-DD) 사이가 며칠인지 */
+function daysBetween(a, b) {
+  return Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000);
+}
+
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
@@ -308,6 +313,7 @@ async function route(method, url, b) {
       batch.set(doc(collection(db, "events")), {
         title: poll.title,
         date: chosen.date,
+        endDate: null, // 투표로 정한 날은 하루짜리
         time: chosen.time || "",
         place: chosen.note || "",
         memo: "투표로 정해진 일정",
@@ -327,9 +333,20 @@ async function route(method, url, b) {
       const title = clean(b.title, 120);
       const date = clean(b.date, 10);
       if (!title || !date) throw new Error("일정 이름과 날짜가 필요해요.");
+
+      // 여러 날에 걸친 일정이면 끝나는 날까지. 하루짜리면 endDate는 없음
+      let endDate = clean(b.endDate, 10);
+      if (endDate) {
+        if (endDate < date) throw new Error("끝나는 날이 시작하는 날보다 빠를 수 없어요.");
+        if (endDate === date) endDate = null;           // 같은 날이면 하루짜리
+        else if (daysBetween(date, endDate) > 365)
+          throw new Error("기간이 너무 길어요. 1년까지만 돼요.");
+      }
+
       await addDoc(collection(db, "events"), {
         title,
         date,
+        endDate: endDate || null,
         time: clean(b.time, 5) || "",
         place: clean(b.place, 60) || "",
         memo: clean(b.memo, 500) || "",

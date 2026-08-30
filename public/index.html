@@ -181,18 +181,25 @@
       </label>
       <div class="field-row">
         <label class="field">
-          <span>날짜</span>
+          <span>시작하는 날</span>
           <input name="date" type="date" required />
         </label>
+        <label class="field">
+          <span>끝나는 날</span>
+          <input name="endDate" type="date" />
+        </label>
+      </div>
+      <p class="kind-hint">수련회나 시험 기간처럼 며칠 이어지는 일정이면 <strong>끝나는 날</strong>까지 넣어 주세요. 하루짜리면 비워 두면 돼요.</p>
+      <div class="field-row">
         <label class="field">
           <span>시간</span>
           <input name="time" type="time" />
         </label>
+        <label class="field">
+          <span>장소</span>
+          <input name="place" maxlength="60" placeholder="운동장 / 3반 교실" />
+        </label>
       </div>
-      <label class="field">
-        <span>장소</span>
-        <input name="place" maxlength="60" placeholder="운동장 / 3반 교실" />
-      </label>
       <div class="composer__foot">
         <button class="btn btn--ghost" type="button" data-close-form>취소</button>
         <button class="btn" type="submit">추가</button>

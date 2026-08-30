@@ -477,6 +477,14 @@ body.is-admin .card__foot.admin-only { display: flex; }
   text-overflow: ellipsis;
 }
 .cal__chip--hw { background: var(--hl-blue); }
+
+/* 여러 날에 걸친 일정 - 칸 끝까지 늘려서 띠처럼 이어져 보이게 */
+.cal__chip--range {
+  border-radius: 2px;
+  margin-inline: -3px;
+  padding-inline: 6px;
+  box-shadow: inset 2px 0 0 var(--red-pen);
+}
 .cal__more { font-size: 10px; color: var(--ink-faint); }
 
 /* ====================== 건의함 ====================== */

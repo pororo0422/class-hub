@@ -85,6 +85,34 @@ function fmtWhen(dateStr, time) {
   return fmtDate(dateStr) + (time ? ` ${time}` : "");
 }
 
+/** 두 날짜 사이가 며칠인지 */
+function daysBetween(a, b) {
+  return Math.round((parseYmd(b) - parseYmd(a)) / 86400000);
+}
+
+/** 일정이 그 날에 걸쳐 있나 (기간 일정이면 중간 날짜도 포함) */
+function eventCovers(e, key) {
+  return e.endDate ? key >= e.date && key <= e.endDate : e.date === key;
+}
+
+/** 일정 날짜 표시 - 기간이면 '8월 3일 (월) ~ 8월 7일 (금) (5일간)' */
+function fmtEventWhen(e) {
+  if (!e.endDate) return fmtWhen(e.date, e.time);
+  const days = daysBetween(e.date, e.endDate) + 1;
+  return `${fmtDate(e.date)} ~ ${fmtDate(e.endDate)} · ${days}일간`;
+}
+
+/** 기간 일정이 지금 진행 중이면 며칠째인지 보여줌 */
+function eventDdayHtml(e) {
+  if (!e.endDate) return ddayHtml(e.date);
+  if (daysLeft(e.date) <= 0 && daysLeft(e.endDate) >= 0) {
+    const nth = daysBetween(e.date, today()) + 1;
+    const total = daysBetween(e.date, e.endDate) + 1;
+    return `<span class="dday dday--urgent">${nth}일째 / ${total}일</span>`;
+  }
+  return ddayHtml(e.date);
+}
+
 /* ------------------------------------------------------------------
  * 데이터 (Firebase)
  *
@@ -148,8 +176,9 @@ function renderToday() {
 
   const openPolls = state.polls.filter((p) => !p.closed);
 
+  // 아직 안 끝났고, 일주일 안에 시작하는 일정 (진행 중인 기간 일정 포함)
   const soonEvents = state.events
-    .filter((e) => daysLeft(e.date) >= 0 && daysLeft(e.date) <= 7)
+    .filter((e) => daysLeft(e.endDate || e.date) >= 0 && daysLeft(e.date) <= 7)
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const pinned = state.notices.filter((n) => n.pinned);
@@ -163,7 +192,9 @@ function renderToday() {
   } else if (openPolls.length) {
     headline = `${openPolls[0].title} 날짜 정하는 중`;
   } else if (soonEvents.length) {
-    headline = `${fmtDate(soonEvents[0].date)}에 ${soonEvents[0].title}`;
+    const e = soonEvents[0];
+    const 진행중 = e.endDate && daysLeft(e.date) <= 0 && daysLeft(e.endDate) >= 0;
+    headline = 진행중 ? `${e.title} 기간 중` : `${fmtDate(e.date)}에 ${e.title}`;
   }
   $("#todayHeadline").textContent = headline;
 
@@ -212,9 +243,9 @@ function renderToday() {
       <article class="card">
         <div class="card__top">
           <h3 class="card__title">${esc(e.title)}</h3>
-          ${ddayHtml(e.date)}
+          ${eventDdayHtml(e)}
         </div>
-        <p class="card__meta">${fmtWhen(e.date, e.time)}${e.place ? ` · ${esc(e.place)}` : ""}</p>
+        <p class="card__meta">${fmtEventWhen(e)}${e.place ? ` · ${esc(e.place)}` : ""}</p>
       </article>`).join("")
     : emptyBox("일주일 안에 잡힌 일정이 없어요.")));
 
@@ -410,7 +441,7 @@ function renderCalendar() {
     const key = ymd(d);
     const items = itemsOn(key);
     const chips = items.slice(0, 2).map((it) =>
-      `<span class="cal__chip ${it.type === "hw" ? "cal__chip--hw" : ""}">${esc(it.label)}</span>`
+      `<span class="cal__chip ${it.type === "hw" ? "cal__chip--hw" : ""} ${it.range ? "cal__chip--range" : ""}">${esc(it.label)}</span>`
     ).join("");
 
     cells.push(`
@@ -435,8 +466,8 @@ function renderCalendar() {
 /** 그 날에 있는 일정 + 숙제 마감 */
 function itemsOn(key) {
   const out = [];
-  state.events.filter((e) => e.date === key)
-    .forEach((e) => out.push({ type: "event", label: e.title, data: e }));
+  state.events.filter((e) => eventCovers(e, key))
+    .forEach((e) => out.push({ type: "event", label: e.title, data: e, range: !!e.endDate }));
   state.homework.filter((h) => h.due === key)
     .forEach((h) => out.push({ type: "hw", label: `${h.subject} 숙제`, data: h }));
   return out;
@@ -453,9 +484,9 @@ function renderDayDetail() {
       <article class="card">
         <div class="card__top">
           <h3 class="card__title">${esc(it.data.title)}</h3>
-          ${ddayHtml(it.data.date)}
+          ${eventDdayHtml(it.data)}
         </div>
-        <p class="card__meta">${fmtWhen(it.data.date, it.data.time)}${it.data.place ? ` · ${esc(it.data.place)}` : ""}</p>
+        <p class="card__meta">${fmtEventWhen(it.data)}${it.data.place ? ` · ${esc(it.data.place)}` : ""}</p>
         ${it.data.memo ? `<p class="card__body">${esc(it.data.memo)}</p>` : ""}
         <div class="card__foot">
           <button class="link-btn" data-del-event="${it.data.id}" type="button">지우기</button>
@@ -619,6 +650,7 @@ $("#eventForm").addEventListener("submit", (e) => {
     await api("POST", "/api/events", {
       title: f.elements.title.value,
       date: f.elements.date.value,
+      endDate: f.elements.endDate.value,
       time: f.elements.time.value,
       place: f.elements.place.value,
     });

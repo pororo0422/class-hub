@@ -1,6 +1,6 @@
 # 우리 반 알림장 (베타)
 
-공지 · 숙제 · 투표(날짜 정하기 / 찬반 묻기) · 달력 · 건의함이 들어간 학급용 웹사이트.
+공지 · 숙제 · 투표(날짜 정하기 / 찬반 묻기) · 달력(기간 일정 지원) · 건의함이 들어간 학급용 웹사이트.
 
 **https://pororo0422.github.io/class-hub/**
 
@@ -92,11 +92,23 @@ node만 있으면 바로 돌아가. 데이터는 로컬에서도 Firebase를 보
 | `notices` | 공지 — `title`, `body`, `author`, `pinned`, `createdAt` |
 | `homework` | 숙제 — `subject`, `title`, `detail`, `due`, `author`, `doneBy[]` |
 | `polls` | 투표 — `kind`(`date`/`yesno`), `options[]`, `votes{이름:[옵션id]}`, `closed`, `decidedOptionId` |
-| `events` | 달력 일정 — `title`, `date`, `time`, `place`, `memo` |
+| `events` | 달력 일정 — `title`, `date`(시작), `endDate`(끝 · 하루짜리면 `null`), `time`, `place`, `memo` |
 | `suggestions` | 건의 — `body`, `author`, `replies[]` |
 | `meta/class` | 반 이름 (`className`) |
 
 Firebase 콘솔의 **Firestore Database → 데이터** 탭에서 직접 보고 고칠 수도 있어.
+
+## 여러 날에 걸친 일정
+
+수련회나 시험 기간처럼 며칠 이어지는 일정은 **끝나는 날**까지 넣을 수 있어.
+
+- 달력에서 시작일부터 끝나는 날까지 **모든 칸에** 표시돼 (빨간 줄 있는 띠 모양)
+- 날짜를 누르면 `9월 14일 (월) ~ 9월 16일 (수) · 3일간` 처럼 보여
+- 진행 중이면 `2일째 / 4일` 이라고 며칠째인지 알려줘
+- 이미 시작했어도 안 끝났으면 "오늘" 탭의 이번 주 일정에 계속 남아 있어
+
+끝나는 날을 비워 두거나 시작일과 같게 넣으면 하루짜리로 저장돼(`endDate: null`).
+끝나는 날이 시작일보다 빠르거나 기간이 1년을 넘으면 거부돼.
 
 ## 투표 두 종류
 
