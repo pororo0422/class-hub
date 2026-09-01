@@ -96,7 +96,7 @@ const LISTS = [
  * @param {(state) => void} onChange  데이터가 바뀔 때마다 호출됨
  * @param {(err) => void}   onError   읽기에 실패했을 때
  */
-export function startRealtime(onChange, onError) {
+export function startRealtime(onChange, onError, onCleanup) {
   if (!db) {
     onError?.("Firebase 설정이 아직 안 됐어요. public/firebase-config.js 를 확인해 주세요.");
     return;
@@ -122,9 +122,64 @@ export function startRealtime(onChange, onError) {
       (snap) => {
         cache[name] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         push();
+        // 숙제 목록이 서버에서 실제로 도착했을 때 오래된 것들을 치움.
+        // fromCache를 안 보면 첫 스냅샷이 빈 채로 와서 정리가 헛돌 수 있음.
+        if (name === "homework" && !snap.metadata.fromCache) {
+          지난숙제정리(cache.homework, onCleanup);
+        }
       },
       fail(name),
     );
+  }
+}
+
+/* ------------------------------------------------------------------
+ * 지난 숙제 자동 정리
+ *
+ * 서버가 없어서 시간 맞춰 도는 게 아니야. 누군가 사이트를 열었을 때
+ * 그 브라우저가 대신 치우는 방식이라, 아무도 안 들어오면 안 지워져.
+ * 지우면 되돌릴 수 없으니 마감에서 며칠 지난 것만 건드림.
+ * ---------------------------------------------------------------- */
+
+/** 마감 뒤 이만큼 지나면 지움 */
+const 보관일수 = 3;
+
+/** 한 번에 이보다 많이는 안 지움 (기기 시계가 이상할 때 피해를 줄이려고) */
+const 한번에최대 = 20;
+
+let 정리했음 = false;
+
+/** 이 날짜 이전(같은 날 포함)에 마감된 숙제는 정리 대상 (기기 시간대 기준) */
+function 정리기준일() {
+  const d = new Date();
+  d.setDate(d.getDate() - 보관일수);
+  const p = (v) => String(v).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** 마감이 한참 지난 숙제를 지움. 몇 개 지웠는지 알려줌 */
+async function 지난숙제정리(목록, 알림) {
+  if (정리했음) return;
+  정리했음 = true;                       // 한 번 접속에 한 번만
+
+  const 기준 = 정리기준일();
+  const 오래된 = 목록
+    .filter((h) => typeof h.due === "string" && h.due <= 기준)
+    .slice(0, 한번에최대);
+
+  if (!오래된.length) return;
+
+  // 하나씩 지우면 개수만큼 왕복해서 느려. 한 번에 묶어서 보냄
+  try {
+    const batch = writeBatch(db);
+    오래된.forEach((h) => batch.delete(doc(db, "homework", h.id)));
+    await batch.commit();
+
+    console.log(`지난 숙제 ${오래된.length}개 정리함 (${기준} 이전 마감)`);
+    알림?.(오래된.length);
+  } catch (e) {
+    console.warn("지난 숙제 정리 실패:", e?.code || e);
+    정리했음 = false;              // 실패했으면 다음 기회에 다시
   }
 }
 

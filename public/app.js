@@ -951,10 +951,15 @@ $("#nextMonth").addEventListener("click", () => {
 
   // 이제부터는 Firestore가 바뀔 때마다 applyState가 자동으로 불림.
   // 다른 애가 공지를 올리면 새로고침 없이 내 화면에도 바로 뜸.
-  startRealtime(applyState, (msg) => {
-    toast(msg);
-    if (!state) $("#todayBoard").innerHTML = emptyBox(msg);
-  });
+  startRealtime(
+    applyState,
+    (msg) => {
+      toast(msg);
+      if (!state) $("#todayBoard").innerHTML = emptyBox(msg);
+    },
+    // 마감 지난 숙제를 치웠을 때 (조용히 사라지면 놀라니까 알려줌)
+    (개수) => toast(`마감 지난 숙제 ${개수}개를 정리했어요.`),
+  );
 
   if (!myName) $("#nameModal").showModal();
 })();
