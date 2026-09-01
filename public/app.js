@@ -40,6 +40,92 @@ function toast(msg) {
   toast._timer = setTimeout(() => t.classList.remove("is-on"), 2200);
 }
 
+/* ------------------------------------------------------------------
+ * 폭죽 - 숙제 다 했다고 누를 때 터짐
+ *
+ * 라이브러리 없이 canvas에 직접 그림. 종잇조각이 사방으로 퍼졌다가
+ * 중력을 받아 떨어지면서 서서히 사라져.
+ * ---------------------------------------------------------------- */
+
+const 폭죽색 = ["#FFE87C", "#A9E3F7", "#D93A2B", "#1B2A45", "#FFB4A8", "#8FD9A8"];
+
+const confettiCanvas = $("#confetti");
+const cctx = confettiCanvas.getContext("2d");
+let 조각들 = [];
+let 폭죽도는중 = false;
+
+function fitConfetti() {
+  const r = window.devicePixelRatio || 1;
+  confettiCanvas.width = window.innerWidth * r;
+  confettiCanvas.height = window.innerHeight * r;
+  cctx.setTransform(r, 0, 0, r, 0, 0);
+}
+fitConfetti();
+window.addEventListener("resize", fitConfetti);
+
+/** 화면의 (x, y) 자리에서 폭죽을 터뜨림 */
+function fireConfetti(x, y) {
+  // 움직임 줄이기를 켜 둔 사람에겐 안 터뜨림
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  for (let i = 0; i < 120; i++) {
+    const 각도 = Math.random() * Math.PI * 2;
+    const 속도 = 2 + Math.random() * 6.5;
+    const 종이 = Math.random() > 0.25;          // 대부분 종잇조각, 가끔 반짝이
+    조각들.push({
+      x, y,
+      vx: Math.cos(각도) * 속도,
+      vy: Math.sin(각도) * 속도 - 4,            // 살짝 위로 솟았다가 떨어지게
+      w: 종이 ? 5 + Math.random() * 6 : 3 + Math.random() * 2,
+      h: 종이 ? 3 + Math.random() * 6 : 3 + Math.random() * 2,
+      둥글다: !종이,
+      각: Math.random() * Math.PI,
+      회전: (Math.random() - 0.5) * 0.35,
+      색: 폭죽색[(Math.random() * 폭죽색.length) | 0],
+      수명: 1,
+    });
+  }
+
+  if (!폭죽도는중) { 폭죽도는중 = true; requestAnimationFrame(그리기); }
+}
+
+function 그리기() {
+  const W = window.innerWidth, H = window.innerHeight;
+  cctx.clearRect(0, 0, W, H);
+
+  조각들 = 조각들.filter((p) => p.수명 > 0 && p.y < H + 50);
+
+  for (const p of 조각들) {
+    p.vy += 0.28;        // 중력
+    p.vx *= 0.975;       // 공기 저항 (너무 멀리 안 날아가게)
+    p.x += p.vx;
+    p.y += p.vy;
+    p.각 += p.회전;
+    p.수명 -= 0.011;
+
+    cctx.save();
+    cctx.translate(p.x, p.y);
+    cctx.rotate(p.각);
+    cctx.globalAlpha = Math.max(0, Math.min(1, p.수명));
+    cctx.fillStyle = p.색;
+    if (p.둥글다) {
+      cctx.beginPath();
+      cctx.arc(0, 0, p.w / 2, 0, Math.PI * 2);
+      cctx.fill();
+    } else {
+      cctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+    }
+    cctx.restore();
+  }
+
+  if (조각들.length) {
+    requestAnimationFrame(그리기);
+  } else {
+    폭죽도는중 = false;
+    cctx.clearRect(0, 0, W, H);
+  }
+}
+
 /* ---------- 날짜 ---------- */
 
 const DOW = ["일", "월", "화", "수", "목", "금", "토"];
@@ -209,14 +295,22 @@ function renderToday() {
   }
 
   parts.push(section("곧 마감인 숙제", soonHw.length
-    ? soonHw.map((h) => `
+    ? soonHw.map((h) => {
+        const done = myName && h.doneBy.includes(myName);
+        return `
       <article class="card">
         <div class="card__top">
           <h3 class="card__title"><span class="tag tag--sub">${esc(h.subject)}</span> ${esc(h.title)}</h3>
           ${ddayHtml(h.due)}
         </div>
         <p class="card__meta">${fmtDate(h.due)}까지 · ${h.doneBy.length}명 완료</p>
-      </article>`).join("")
+        <div class="card__foot">
+          <button class="btn btn--sm ${done ? "" : "btn--ghost"}" data-done-hw="${h.id}" type="button">
+            ${done ? "✓ 다 했어요" : "다 했어요"}
+          </button>
+        </div>
+      </article>`;
+      }).join("")
     : emptyBox("이틀 안에 마감인 숙제는 없어요.")));
 
   parts.push(section("투표하는 중", openPolls.length
@@ -756,6 +850,13 @@ document.addEventListener("click", (e) => {
   const doneHw = t.closest("[data-done-hw]");
   if (doneHw) {
     if (!myName) { toast("먼저 이름을 설정해 주세요."); $("#nameModal").showModal(); return; }
+
+    // 체크할 때만 터뜨림 (취소할 땐 조용히)
+    const hw = state.homework.find((h) => h.id === doneHw.dataset.doneHw);
+    if (hw && !hw.doneBy.includes(myName)) {
+      const r = doneHw.getBoundingClientRect();
+      fireConfetti(r.left + r.width / 2, r.top + r.height / 2);
+    }
     return act(() => api("POST", `/api/homework/${doneHw.dataset.doneHw}/done`, { name: myName }));
   }
 
