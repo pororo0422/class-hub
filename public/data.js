@@ -38,6 +38,11 @@ function requireDb() {
   return db;
 }
 
+/** 반장 모드에서만 되는 일 (마감 / 지우기) */
+function requireAdmin(b) {
+  if (clean(b.adminKey, 100) !== ADMIN_KEY) throw new Error("반장만 할 수 있어요.");
+}
+
 /* ------------------------------------------------------------------
  * 예전 server.js에 있던 도우미들 (그대로 옮겨옴)
  * ---------------------------------------------------------------- */
@@ -350,6 +355,7 @@ async function route(method, url, b) {
 
     /* 투표 마감 + 확정된 날짜를 달력 일정으로 등록 (둘 다 되거나 둘 다 안 되거나) */
     case "POST polls/:id/close": {
+      requireAdmin(b);
       const poll = find("polls", id, "투표를 찾을 수 없어요.");
 
       // 찬반·후보군은 표를 제일 많이 받은 쪽이 결론. 달력에 넣을 일정이 없음
@@ -391,6 +397,7 @@ async function route(method, url, b) {
     }
 
     case "DELETE polls/:id":
+      requireAdmin(b);
       await deleteDoc(doc(db, "polls", id));
       return { ok: true };
 

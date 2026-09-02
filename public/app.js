@@ -482,14 +482,16 @@ function renderChoicePoll(p) {
       ${p.description ? `<p class="card__body">${esc(p.description)}</p>` : ""}
       <div class="poll__opts">${opts}</div>
       ${verdict}
-      <div class="card__foot">
-        ${p.closed ? "" : `
-          <button class="btn btn--sm" data-close-tally="${p.id}" type="button">투표 마감</button>
+      ${p.closed ? "" : `
+        <div class="card__foot">
           <span class="poll__who">${
             복수
               ? (mine.length ? `${mine.length}개 골랐어요 · 다시 누르면 빼요` : "마음에 드는 후보를 다 눌러 주세요")
               : (myPick ? `내 표는 ${esc(myPick.label)} · 다시 누르면 바꿀 수 있어요` : "후보 중 하나를 눌러 주세요")
-          }</span>`}
+          }</span>
+        </div>`}
+      <div class="card__foot admin-only">
+        ${p.closed ? "" : `<button class="btn btn--sm" data-close-tally="${p.id}" type="button">투표 마감</button>`}
         <button class="link-btn" data-del-poll="${p.id}" type="button">지우기</button>
       </div>
     </article>`;
@@ -545,10 +547,12 @@ function renderYesNoPoll(p) {
       ${p.description ? `<p class="card__body">${esc(p.description)}</p>` : ""}
       <div class="yesno__row">${sides}</div>
       ${verdict}
-      <div class="card__foot">
-        ${p.closed ? "" : `
-          <button class="btn btn--sm" data-close-tally="${p.id}" type="button">투표 마감</button>
-          <span class="poll__who">${myPick ? `내 표는 ${esc(myPick.label)} · 다시 누르면 바꿀 수 있어요` : "찬성이나 반대를 눌러 주세요"}</span>`}
+      ${p.closed ? "" : `
+        <div class="card__foot">
+          <span class="poll__who">${myPick ? `내 표는 ${esc(myPick.label)} · 다시 누르면 바꿀 수 있어요` : "찬성이나 반대를 눌러 주세요"}</span>
+        </div>`}
+      <div class="card__foot admin-only">
+        ${p.closed ? "" : `<button class="btn btn--sm" data-close-tally="${p.id}" type="button">투표 마감</button>`}
         <button class="link-btn" data-del-poll="${p.id}" type="button">지우기</button>
       </div>
     </article>`;
@@ -584,12 +588,13 @@ function renderDatePoll(p) {
       </label>`;
   }).join("");
 
-  const adminFoot = p.closed ? "" : `
-    <div class="card__foot">
-      <select class="btn btn--ghost btn--sm" data-decide-select="${p.id}">
-        ${p.options.map((o) => `<option value="${o.id}">${fmtWhen(o.date, o.time)}</option>`).join("")}
-      </select>
-      <button class="btn btn--sm" data-close-poll="${p.id}" type="button">이 날로 확정</button>
+  const adminFoot = `
+    <div class="card__foot admin-only">
+      ${p.closed ? "" : `
+        <select class="btn btn--ghost btn--sm" data-decide-select="${p.id}">
+          ${p.options.map((o) => `<option value="${o.id}">${fmtWhen(o.date, o.time)}</option>`).join("")}
+        </select>
+        <button class="btn btn--sm" data-close-poll="${p.id}" type="button">이 날로 확정</button>`}
       <button class="link-btn" data-del-poll="${p.id}" type="button">지우기</button>
     </div>`;
 
@@ -1031,19 +1036,26 @@ document.addEventListener("click", (e) => {
   }
 
   const closeTally = t.closest("[data-close-tally]");
-  if (closeTally && confirm("투표를 마감할까요? 표를 제일 많이 받은 쪽으로 결론이 나요."))
-    return act(() => api("POST", `/api/polls/${closeTally.dataset.closeTally}/close`), "마감했어요.");
+  if (closeTally) {
+    if (!adminKey) { toast("투표 마감은 반장만 할 수 있어요."); return; }
+    if (!confirm("투표를 마감할까요? 표를 제일 많이 받은 쪽으로 결론이 나요.")) return;
+    return act(() => api("POST", `/api/polls/${closeTally.dataset.closeTally}/close`, { adminKey }), "마감했어요.");
+  }
 
   const closePoll = t.closest("[data-close-poll]");
   if (closePoll) {
+    if (!adminKey) { toast("투표 확정은 반장만 할 수 있어요."); return; }
     const id = closePoll.dataset.closePoll;
     const sel = $(`[data-decide-select="${id}"]`);
-    return act(() => api("POST", `/api/polls/${id}/close`, { optionId: sel.value }), "일정으로 확정했어요. 달력을 확인해 보세요.");
+    return act(() => api("POST", `/api/polls/${id}/close`, { optionId: sel.value, adminKey }), "일정으로 확정했어요. 달력을 확인해 보세요.");
   }
 
   const delP = t.closest("[data-del-poll]");
-  if (delP && confirm("이 투표를 지울까요?"))
-    return act(() => api("DELETE", `/api/polls/${delP.dataset.delPoll}`), "지웠어요.");
+  if (delP) {
+    if (!adminKey) { toast("투표 지우기는 반장만 할 수 있어요."); return; }
+    if (!confirm("이 투표를 지울까요?")) return;
+    return act(() => api("DELETE", `/api/polls/${delP.dataset.delPoll}`, { adminKey }), "지웠어요.");
+  }
 
   /* 달력 */
   const cell = t.closest("[data-date]");
