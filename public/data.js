@@ -285,13 +285,21 @@ async function route(method, url, b) {
     case "POST polls": {
       const title = need(clean(b.title, 120), "투표 제목을 입력해 주세요.");
 
-      // 날짜 정하기(date)와 찬반 묻기(yesno) 두 종류
-      const kind = b.kind === "yesno" ? "yesno" : "date";
+      // 날짜 정하기(date) / 찬반 묻기(yesno) / 후보 중 고르기(choice)
+      const kind = ["yesno", "choice"].includes(b.kind) ? b.kind : "date";
 
       let options;
       if (kind === "yesno") {
         // 찬반은 선택지가 정해져 있어서 따로 안 받음
         options = [{ id: uid(), label: "찬성" }, { id: uid(), label: "반대" }];
+      } else if (kind === "choice") {
+        // 후보군은 적어 준 글자들이 그대로 선택지가 됨
+        options = (Array.isArray(b.options) ? b.options : [])
+          .map((o) => ({ id: uid(), label: clean(typeof o === "string" ? o : o?.label, 40) }))
+          .filter((o) => o.label)
+          .slice(0, 10);
+
+        if (options.length < 2) throw new Error("후보를 2개 이상 넣어 주세요.");
       } else {
         options = (Array.isArray(b.options) ? b.options : [])
           .map((o) => ({
@@ -329,8 +337,8 @@ async function route(method, url, b) {
       const picked = (Array.isArray(b.optionIds) ? b.optionIds : []).filter((x) =>
         valid.includes(x),
       );
-      // 찬반은 둘 중 하나만. 날짜 투표는 되는 날 여러 개 고를 수 있음
-      const final = poll.kind === "yesno" ? picked.slice(0, 1) : picked;
+      // 날짜 투표만 여러 개 고를 수 있고, 찬반·후보군은 하나만
+      const final = poll.kind === "date" || !poll.kind ? picked : picked.slice(0, 1);
 
       // 이름에 점(.)이 들어가도 안 깨지게 FieldPath로 콕 집어서 저장
       await updateDoc(doc(db, "polls", id), new FieldPath("votes", who), final);
@@ -341,8 +349,8 @@ async function route(method, url, b) {
     case "POST polls/:id/close": {
       const poll = find("polls", id, "투표를 찾을 수 없어요.");
 
-      // 찬반은 표를 더 받은 쪽이 결론. 달력에 넣을 일정이 없음
-      if (poll.kind === "yesno") {
+      // 찬반·후보군은 표를 제일 많이 받은 쪽이 결론. 달력에 넣을 일정이 없음
+      if (poll.kind === "yesno" || poll.kind === "choice") {
         const tally = {};
         (poll.options || []).forEach((o) => (tally[o.id] = 0));
         Object.values(poll.votes || {}).forEach((picks) =>

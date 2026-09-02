@@ -138,6 +138,10 @@
             <input type="radio" name="kind" value="yesno" />
             <span>찬반 묻기</span>
           </label>
+          <label class="kind-pick__opt">
+            <input type="radio" name="kind" value="choice" />
+            <span>후보 중 고르기</span>
+          </label>
         </div>
       </div>
 
@@ -156,7 +160,14 @@
         <button class="btn btn--ghost btn--sm" type="button" id="addOptionBtn">＋ 후보 추가</button>
       </div>
 
+      <div class="field" id="choiceOptionsField" hidden>
+        <span>후보</span>
+        <div id="choiceRows" class="option-rows"></div>
+        <button class="btn btn--ghost btn--sm" type="button" id="addChoiceBtn">＋ 후보 추가</button>
+      </div>
+
       <p class="kind-hint" id="yesnoHint" hidden>선택지는 <strong>찬성 / 반대</strong> 두 개로 자동으로 만들어져요. 누가 어느 쪽에 투표했는지는 안 보여요.</p>
+      <p class="kind-hint" id="choiceHint" hidden>후보 중 <strong>하나만</strong> 고를 수 있어요. 최대 10개까지 넣을 수 있고, 누가 뭘 골랐는지는 다 보여요.</p>
 
       <div class="composer__foot">
         <button class="btn btn--ghost" type="button" data-close-form>취소</button>

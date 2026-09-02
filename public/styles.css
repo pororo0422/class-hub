@@ -662,3 +662,16 @@ body.is-admin .card__foot.admin-only { display: flex; }
   pointer-events: none;
   z-index: 55;   /* 토스트 안내문(60)은 가리지 않게 */
 }
+
+/* 후보군 투표 - 눌러서 고르는 항목 (label이 아니라 button이라 기본 스타일을 맞춰줌) */
+.poll__opt--pick {
+  width: 100%;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  text-align: left;
+  gap: 12px;
+}
+.poll__opt--pick:disabled { cursor: default; }
+.poll__opt--pick:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.poll__opt--pick.is-picked { border-width: 2px; }

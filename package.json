@@ -1,7 +1,7 @@
 {
   "name": "class-hub",
   "version": "1.0.0",
-  "description": "우리 반 알림장 - 공지, 숙제, 투표(날짜/찬반), 달력, 건의함",
+  "description": "우리 반 알림장 - 공지, 숙제, 투표(날짜/찬반/후보), 달력, 건의함",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

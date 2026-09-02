@@ -407,7 +407,67 @@ function renderPolls() {
 
 function renderOnePoll(p) {
   // kind가 없는 예전 투표는 전부 날짜 투표
-  return p.kind === "yesno" ? renderYesNoPoll(p) : renderDatePoll(p);
+  if (p.kind === "yesno") return renderYesNoPoll(p);
+  if (p.kind === "choice") return renderChoicePoll(p);
+  return renderDatePoll(p);
+}
+
+/* 후보 중 고르기 - 하나만 고를 수 있고, 누가 뭘 골랐는지 보임 */
+function renderChoicePoll(p) {
+  const counts = {};
+  p.options.forEach((o) => (counts[o.id] = 0));
+  Object.values(p.votes).forEach((picks) =>
+    picks.forEach((id) => { if (counts[id] !== undefined) counts[id]++; })
+  );
+
+  const max = Math.max(1, ...Object.values(counts));
+  const mine = (myName && p.votes[myName]) || [];
+  const myPick = p.options.find((o) => o.id === mine[0]);
+  const voters = Object.keys(p.votes);
+
+  const opts = p.options.map((o) => {
+    const c = counts[o.id];
+    const picked = mine.includes(o.id);
+    const won = p.decidedOptionId === o.id;
+    const who = voters.filter((v) => p.votes[v].includes(o.id));
+    return `
+      <button class="poll__opt poll__opt--pick ${picked ? "is-picked" : ""} ${won ? "is-won" : ""}"
+              type="button" ${p.closed ? "disabled" : ""}
+              data-pick-vote="${p.id}" data-option="${o.id}">
+        <span class="poll__bar" style="width:${(c / max) * 100}%"></span>
+        <span>
+          <span class="poll__date">${esc(o.label)}${picked ? " ✓" : ""}</span>
+          ${who.length ? `<br><span class="poll__note">${esc(who.join(", "))}</span>` : ""}
+        </span>
+        <span class="poll__count">${c}표${won ? " · 당선" : ""}</span>
+      </button>`;
+  }).join("");
+
+  let verdict = "";
+  if (p.closed) {
+    const win = p.options.find((o) => o.id === p.decidedOptionId);
+    verdict = win
+      ? `<p class="poll__verdict">${esc(win.label)} (으)로 정해졌어요</p>`
+      : `<p class="poll__verdict">동점이라 결론이 안 났어요</p>`;
+  }
+
+  return `
+    <article class="card">
+      <div class="card__top">
+        <h3 class="card__title">${esc(p.title)}</h3>
+        <span class="tag tag--sub">후보</span>
+        <span class="tag">${p.closed ? "마감됨" : `${voters.length}명 참여`}</span>
+      </div>
+      ${p.description ? `<p class="card__body">${esc(p.description)}</p>` : ""}
+      <div class="poll__opts">${opts}</div>
+      ${verdict}
+      <div class="card__foot">
+        ${p.closed ? "" : `
+          <button class="btn btn--sm" data-close-tally="${p.id}" type="button">투표 마감</button>
+          <span class="poll__who">${myPick ? `내 표는 ${esc(myPick.label)} · 다시 누르면 바꿀 수 있어요` : "후보 중 하나를 눌러 주세요"}</span>`}
+        <button class="link-btn" data-del-poll="${p.id}" type="button">지우기</button>
+      </div>
+    </article>`;
 }
 
 /* 찬반 투표 - 누가 어느 쪽인지는 안 보이고 숫자만 */
@@ -430,7 +490,7 @@ function renderYesNoPoll(p) {
     return `
       <button class="yesno ${o.label === "찬성" ? "yesno--yes" : "yesno--no"} ${picked ? "is-picked" : ""} ${won ? "is-won" : ""}"
               type="button" ${p.closed ? "disabled" : ""}
-              data-yes-vote="${p.id}" data-option="${o.id}">
+              data-pick-vote="${p.id}" data-option="${o.id}">
         <span class="yesno__bar" style="width:${pct}%"></span>
         <span class="yesno__label">${esc(o.label)}${picked ? " ✓" : ""}</span>
         <span class="yesno__count">${c}표<span class="yesno__pct"> · ${pct}%</span></span>
@@ -457,7 +517,7 @@ function renderYesNoPoll(p) {
       ${verdict}
       <div class="card__foot">
         ${p.closed ? "" : `
-          <button class="btn btn--sm" data-close-yesno="${p.id}" type="button">투표 마감</button>
+          <button class="btn btn--sm" data-close-tally="${p.id}" type="button">투표 마감</button>
           <span class="poll__who">${myPick ? `내 표는 ${esc(myPick.label)} · 다시 누르면 바꿀 수 있어요` : "찬성이나 반대를 눌러 주세요"}</span>`}
         <button class="link-btn" data-del-poll="${p.id}" type="button">지우기</button>
       </div>
@@ -778,19 +838,48 @@ function addOptionRow(date = "") {
   $("#optionRows").appendChild(row);
 }
 
-/** 고른 종류에 맞춰 폼을 바꿈 (찬반이면 후보 날짜를 숨김) */
+/** 고른 종류에 맞춰 폼을 바꿈 (필요 없는 입력칸은 숨김) */
 function syncPollKind() {
-  const yesno = $("#pollForm").elements.kind.value === "yesno";
-  $("#dateOptionsField").hidden = yesno;
-  $("#yesnoHint").hidden = !yesno;
-  $("#pollTitleLabel").textContent = yesno ? "무엇을 물어볼까요" : "무슨 일정인가요";
-  $("#pollTitleInput").placeholder = yesno
-    ? "예) 체육대회 종목 피구로 바꿀까요?"
-    : "예) 반 바베큐 파티";
-  $("#pollDescInput").placeholder = yesno
-    ? "왜 물어보는지 적어 주면 좋아요."
-    : "되는 날 다 골라 주세요. 제일 많이 겹치는 날로 정할게요.";
+  const kind = $("#pollForm").elements.kind.value;
+
+  $("#dateOptionsField").hidden = kind !== "date";
+  $("#choiceOptionsField").hidden = kind !== "choice";
+  $("#yesnoHint").hidden = kind !== "yesno";
+  $("#choiceHint").hidden = kind !== "choice";
+
+  const 문구 = {
+    date: ["무슨 일정인가요", "예) 반 바베큐 파티",
+           "되는 날 다 골라 주세요. 제일 많이 겹치는 날로 정할게요."],
+    yesno: ["무엇을 물어볼까요", "예) 체육대회 종목 피구로 바꿀까요?",
+            "왜 물어보는지 적어 주면 좋아요."],
+    choice: ["무엇을 고르나요", "예) 우리 반 반티 뭐로 할까요?",
+             "후보를 아래에 적어 주세요."],
+  }[kind];
+
+  $("#pollTitleLabel").textContent = 문구[0];
+  $("#pollTitleInput").placeholder = 문구[1];
+  $("#pollDescInput").placeholder = 문구[2];
 }
+
+/** 후보군 투표의 후보 한 줄 */
+function addChoiceRow(value = "") {
+  if ($$("#choiceRows .option-row").length >= 10) {
+    toast("후보는 10개까지 넣을 수 있어요.");
+    return;
+  }
+  const row = document.createElement("div");
+  row.className = "option-row";
+  row.innerHTML = `
+    <input type="text" maxlength="40" value="${esc(value)}" placeholder="예) 검정 후드티" />
+    <button class="link-btn" type="button" data-remove-row>×</button>`;
+  $("#choiceRows").appendChild(row);
+}
+
+$("#addChoiceBtn").addEventListener("click", () => addChoiceRow());
+
+$("#choiceRows").addEventListener("click", (e) => {
+  if (e.target.closest("[data-remove-row]")) e.target.closest(".option-row").remove();
+});
 
 $("#pollForm").addEventListener("change", (e) => {
   if (e.target.name === "kind") syncPollKind();
@@ -807,11 +896,16 @@ $("#pollForm").addEventListener("submit", (e) => {
   const f = e.target;
   const kind = f.elements.kind.value;
 
-  // 찬반은 선택지를 서버가 만들어 주니까 안 보냄
-  const options = kind === "yesno" ? [] : $("#optionRows .option-row").map((r) => {
-    const [d, t, n] = r.querySelectorAll("input");
-    return { date: d.value, time: t.value, note: n.value };
-  });
+  // 찬반은 선택지를 서버가 만들어 주고, 후보군은 적어 준 글자를 그대로 보냄
+  let options = [];
+  if (kind === "date") {
+    options = $$("#optionRows .option-row").map((r) => {
+      const [d, t, n] = r.querySelectorAll("input");
+      return { date: d.value, time: t.value, note: n.value };
+    });
+  } else if (kind === "choice") {
+    options = $$("#choiceRows .option-row input").map((i) => i.value).filter((v) => v.trim());
+  }
 
   act(async () => {
     await api("POST", "/api/polls", {
@@ -824,6 +918,8 @@ $("#pollForm").addEventListener("submit", (e) => {
     f.reset(); f.hidden = true;
     $("#optionRows").innerHTML = "";
     addOptionRow(); addOptionRow();
+    $("#choiceRows").innerHTML = "";
+    addChoiceRow(); addChoiceRow();
     syncPollKind();
   }, "투표를 열었어요.");
 });
@@ -873,17 +969,17 @@ document.addEventListener("click", (e) => {
     return act(() => api("POST", `/api/polls/${id}/vote`, { name: myName, optionIds: picked }), "표를 저장했어요.");
   }
 
-  /* 찬반 투표 - 누르면 바로 저장 */
-  const yesVote = t.closest("[data-yes-vote]");
-  if (yesVote) {
+  /* 찬반·후보군 - 하나만 고르는 투표. 누르면 바로 저장 */
+  const pick = t.closest("[data-pick-vote]");
+  if (pick) {
     if (!myName) { toast("이름을 먼저 설정해 주세요."); return; }
-    return act(() => api("POST", `/api/polls/${yesVote.dataset.yesVote}/vote`,
-      { name: myName, optionIds: [yesVote.dataset.option] }), "표를 냈어요.");
+    return act(() => api("POST", `/api/polls/${pick.dataset.pickVote}/vote`,
+      { name: myName, optionIds: [pick.dataset.option] }), "표를 냈어요.");
   }
 
-  const closeYN = t.closest("[data-close-yesno]");
-  if (closeYN && confirm("투표를 마감할까요? 표가 더 많은 쪽으로 결론이 나요."))
-    return act(() => api("POST", `/api/polls/${closeYN.dataset.closeYesno}/close`), "마감했어요.");
+  const closeTally = t.closest("[data-close-tally]");
+  if (closeTally && confirm("투표를 마감할까요? 표를 제일 많이 받은 쪽으로 결론이 나요."))
+    return act(() => api("POST", `/api/polls/${closeTally.dataset.closeTally}/close`), "마감했어요.");
 
   const closePoll = t.closest("[data-close-poll]");
   if (closePoll) {
@@ -938,6 +1034,8 @@ $("#nextMonth").addEventListener("click", () => {
   setName(store.get("classhub:name"));
   addOptionRow();
   addOptionRow();
+  addChoiceRow();
+  addChoiceRow();
   syncPollKind();
 
   if (!configReady) {
