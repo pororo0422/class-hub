@@ -91,7 +91,7 @@ node만 있으면 바로 돌아가. 데이터는 로컬에서도 Firebase를 보
 |---|---|
 | `notices` | 공지 — `title`, `body`, `author`, `pinned`, `createdAt` |
 | `homework` | 숙제 — `subject`, `title`, `detail`, `due`, `author`, `doneBy[]` |
-| `polls` | 투표 — `kind`(`date`/`yesno`/`choice`), `anonymous`, `options[]`, `votes{이름:[옵션id]}`, `closed`, `decidedOptionId` |
+| `polls` | 투표 — `kind`(`date`/`yesno`/`choice`), `anonymous`, `multi`, `options[]`, `votes{이름:[옵션id]}`, `closed`, `decidedOptionId` |
 | `events` | 달력 일정 — `title`, `date`(시작), `endDate`(끝 · 하루짜리면 `null`), `time`, `place`, `memo` |
 | `suggestions` | 건의 — `body`, `author`, `replies[]` |
 | `meta/class` | 반 이름 (`className`) |
@@ -151,7 +151,21 @@ Firebase 콘솔의 **Firestore Database → 데이터** 탭에서 직접 보고 
 |---|---|---|---|
 | 날짜 정하기 | 여러 개 | 꺼짐 | 정한 날이 달력에 등록됨 |
 | 찬반 묻기 | 하나 | **켜짐** | 표 많은 쪽으로 결론 |
-| 후보 중 고르기 | 하나 | 꺼짐 | 표 많은 후보가 당선 |
+| 후보 중 고르기 | 하나 (중복 선택 켜면 여러 개) | 꺼짐 | 표 많은 후보가 당선 |
+
+## 중복 선택
+
+후보군 투표를 만들 때 **중복 선택**을 켜면 한 사람이 마음에 드는 후보를 **여러 개** 고를 수 있어.
+반티처럼 "괜찮은 거 다 골라 봐" 할 때 써. 켜진 투표에는 `중복` 딱지가 붙어.
+
+- 켜면: 누를 때마다 하나씩 추가되고, 이미 고른 걸 다시 누르면 그것만 빠져
+- 끄면: 지금까지처럼 하나만. 다른 걸 누르면 표가 그쪽으로 옮겨가
+- 다 빼면 참여자 수에서도 빠져
+
+날짜 투표는 원래부터 여러 날을 고르는 거라 항상 켜져 있고, 찬반은 찬성과 반대를 같이 고르는 게
+말이 안 돼서 이 선택칸이 아예 안 보여. **후보군 투표에서만** 고를 수 있어.
+
+`multi` 값이 없는 예전 투표는 날짜만 복수 선택으로 취급돼 (원래 그렇게 동작했으니까).
 
 ## 익명 투표
 

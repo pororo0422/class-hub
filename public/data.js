@@ -316,6 +316,7 @@ async function route(method, url, b) {
       await addDoc(collection(db, "polls"), {
         kind,
         anonymous: !!b.anonymous,
+        multi: kind === "choice" ? !!b.multi : kind === "date",
         title,
         description: clean(b.description, 500) || "",
         createdBy: clean(b.author, 40) || "익명",
@@ -338,8 +339,9 @@ async function route(method, url, b) {
       const picked = (Array.isArray(b.optionIds) ? b.optionIds : []).filter((x) =>
         valid.includes(x),
       );
-      // 날짜 투표만 여러 개 고를 수 있고, 찬반·후보군은 하나만
-      const final = poll.kind === "date" || !poll.kind ? picked : picked.slice(0, 1);
+      // 여러 개 고를 수 있는 투표인지 (multi 값이 없는 예전 투표는 날짜만 복수)
+      const 복수 = poll.multi ?? (poll.kind === "date" || !poll.kind);
+      const final = 복수 ? picked : picked.slice(0, 1);
 
       // 이름에 점(.)이 들어가도 안 깨지게 FieldPath로 콕 집어서 저장
       await updateDoc(doc(db, "polls", id), new FieldPath("votes", who), final);

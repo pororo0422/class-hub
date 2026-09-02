@@ -687,3 +687,6 @@ body.is-admin .card__foot.admin-only { display: flex; }
   text-align: center;
   word-break: keep-all;
 }
+
+/* 중복 선택이 가능한 투표 표시 */
+.tag--multi { background: #E4F5E8; color: #1E6B39; }

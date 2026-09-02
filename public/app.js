@@ -420,6 +420,14 @@ function 익명투표(p) {
   return p.anonymous ?? p.kind === "yesno";
 }
 
+/**
+ * 여러 개 고를 수 있는 투표인지.
+ * multi 값이 없는 예전 투표는 날짜 투표만 복수 선택이었음.
+ */
+function 복수선택(p) {
+  return p.multi ?? (p.kind === "date" || !p.kind);
+}
+
 /* 후보 중 고르기 - 하나만 고를 수 있음 */
 function renderChoicePoll(p) {
   const counts = {};
@@ -431,8 +439,10 @@ function renderChoicePoll(p) {
   const max = Math.max(1, ...Object.values(counts));
   const mine = (myName && p.votes[myName]) || [];
   const myPick = p.options.find((o) => o.id === mine[0]);
-  const voters = Object.keys(p.votes);
+  // 중복 선택에서 다 뺀 사람은 참여로 세지 않음
+  const voters = Object.keys(p.votes).filter((v) => (p.votes[v] || []).length);
   const 익명 = 익명투표(p);
+  const 복수 = 복수선택(p);
 
   const opts = p.options.map((o) => {
     const c = counts[o.id];
@@ -465,6 +475,7 @@ function renderChoicePoll(p) {
       <div class="card__top">
         <h3 class="card__title">${esc(p.title)}</h3>
         <span class="tag tag--sub">후보</span>
+        ${복수 ? `<span class="tag tag--multi">중복</span>` : ""}
         ${익명 ? `<span class="tag tag--anon">익명</span>` : ""}
         <span class="tag">${p.closed ? "마감됨" : `${voters.length}명 참여`}</span>
       </div>
@@ -474,7 +485,11 @@ function renderChoicePoll(p) {
       <div class="card__foot">
         ${p.closed ? "" : `
           <button class="btn btn--sm" data-close-tally="${p.id}" type="button">투표 마감</button>
-          <span class="poll__who">${myPick ? `내 표는 ${esc(myPick.label)} · 다시 누르면 바꿀 수 있어요` : "후보 중 하나를 눌러 주세요"}</span>`}
+          <span class="poll__who">${
+            복수
+              ? (mine.length ? `${mine.length}개 골랐어요 · 다시 누르면 빼요` : "마음에 드는 후보를 다 눌러 주세요")
+              : (myPick ? `내 표는 ${esc(myPick.label)} · 다시 누르면 바꿀 수 있어요` : "후보 중 하나를 눌러 주세요")
+          }</span>`}
         <button class="link-btn" data-del-poll="${p.id}" type="button">지우기</button>
       </div>
     </article>`;
@@ -879,6 +894,11 @@ function syncPollKind() {
 
   // 찬반은 민감할 때가 많아서 익명을 기본으로 켜 둠 (끌 수도 있음)
   $("#pollAnonymous").checked = kind === "yesno";
+
+  // 중복 선택은 후보군에서만 고를 수 있음
+  // (날짜는 원래 여러 개 고르는 거고, 찬반은 둘 다 고르는 게 말이 안 됨)
+  $("#pollMultiWrap").hidden = kind !== "choice";
+  if (kind !== "choice") $("#pollMulti").checked = false;
 }
 
 /** 후보군 투표의 후보 한 줄 */
@@ -931,6 +951,7 @@ $("#pollForm").addEventListener("submit", (e) => {
     await api("POST", "/api/polls", {
       kind,
       anonymous: f.elements.anonymous.checked,
+      multi: f.elements.multi.checked,
       title: f.elements.title.value,
       description: f.elements.description.value,
       author: myName,
@@ -990,12 +1011,23 @@ document.addEventListener("click", (e) => {
     return act(() => api("POST", `/api/polls/${id}/vote`, { name: myName, optionIds: picked }), "표를 저장했어요.");
   }
 
-  /* 찬반·후보군 - 하나만 고르는 투표. 누르면 바로 저장 */
+  /* 찬반·후보군 - 눌러서 바로 저장. 중복 선택이면 눌렀다 뺐다 함 */
   const pick = t.closest("[data-pick-vote]");
   if (pick) {
     if (!myName) { toast("이름을 먼저 설정해 주세요."); return; }
+
+    const 투표 = state.polls.find((x) => x.id === pick.dataset.pickVote);
+    const 고른것 = pick.dataset.option;
+
+    // 복수 선택이면 눌렀다 뺐다 하고, 아니면 그 하나로 바꿈
+    let 보낼것 = [고른것];
+    if (투표 && 복수선택(투표)) {
+      const 지금 = (투표.votes && 투표.votes[myName]) || [];
+      보낼것 = 지금.includes(고른것) ? 지금.filter((x) => x !== 고른것) : [...지금, 고른것];
+    }
+
     return act(() => api("POST", `/api/polls/${pick.dataset.pickVote}/vote`,
-      { name: myName, optionIds: [pick.dataset.option] }), "표를 냈어요.");
+      { name: myName, optionIds: 보낼것 }), "표를 냈어요.");
   }
 
   const closeTally = t.closest("[data-close-tally]");
