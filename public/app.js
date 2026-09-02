@@ -412,7 +412,15 @@ function renderOnePoll(p) {
   return renderDatePoll(p);
 }
 
-/* 후보 중 고르기 - 하나만 고를 수 있고, 누가 뭘 골랐는지 보임 */
+/**
+ * 이 투표가 익명인지.
+ * anonymous 값이 없는 예전 투표는, 찬반만 익명으로 취급 (원래 그렇게 동작했음).
+ */
+function 익명투표(p) {
+  return p.anonymous ?? p.kind === "yesno";
+}
+
+/* 후보 중 고르기 - 하나만 고를 수 있음 */
 function renderChoicePoll(p) {
   const counts = {};
   p.options.forEach((o) => (counts[o.id] = 0));
@@ -424,6 +432,7 @@ function renderChoicePoll(p) {
   const mine = (myName && p.votes[myName]) || [];
   const myPick = p.options.find((o) => o.id === mine[0]);
   const voters = Object.keys(p.votes);
+  const 익명 = 익명투표(p);
 
   const opts = p.options.map((o) => {
     const c = counts[o.id];
@@ -437,7 +446,7 @@ function renderChoicePoll(p) {
         <span class="poll__bar" style="width:${(c / max) * 100}%"></span>
         <span>
           <span class="poll__date">${esc(o.label)}${picked ? " ✓" : ""}</span>
-          ${who.length ? `<br><span class="poll__note">${esc(who.join(", "))}</span>` : ""}
+          ${!익명 && who.length ? `<br><span class="poll__note">${esc(who.join(", "))}</span>` : ""}
         </span>
         <span class="poll__count">${c}표${won ? " · 당선" : ""}</span>
       </button>`;
@@ -456,6 +465,7 @@ function renderChoicePoll(p) {
       <div class="card__top">
         <h3 class="card__title">${esc(p.title)}</h3>
         <span class="tag tag--sub">후보</span>
+        ${익명 ? `<span class="tag tag--anon">익명</span>` : ""}
         <span class="tag">${p.closed ? "마감됨" : `${voters.length}명 참여`}</span>
       </div>
       ${p.description ? `<p class="card__body">${esc(p.description)}</p>` : ""}
@@ -481,12 +491,15 @@ function renderYesNoPoll(p) {
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const mine = (myName && p.votes[myName]) || [];
   const myPick = p.options.find((o) => o.id === mine[0]);
+  const voters = Object.keys(p.votes);
+  const 익명 = 익명투표(p);
 
   const sides = p.options.map((o) => {
     const c = counts[o.id];
     const pct = total ? Math.round((c / total) * 100) : 0;
     const picked = mine.includes(o.id);
     const won = p.decidedOptionId === o.id;
+    const who = voters.filter((v) => p.votes[v].includes(o.id));
     return `
       <button class="yesno ${o.label === "찬성" ? "yesno--yes" : "yesno--no"} ${picked ? "is-picked" : ""} ${won ? "is-won" : ""}"
               type="button" ${p.closed ? "disabled" : ""}
@@ -494,6 +507,7 @@ function renderYesNoPoll(p) {
         <span class="yesno__bar" style="width:${pct}%"></span>
         <span class="yesno__label">${esc(o.label)}${picked ? " ✓" : ""}</span>
         <span class="yesno__count">${c}표<span class="yesno__pct"> · ${pct}%</span></span>
+        ${!익명 && who.length ? `<span class="yesno__who">${esc(who.join(", "))}</span>` : ""}
       </button>`;
   }).join("");
 
@@ -510,6 +524,7 @@ function renderYesNoPoll(p) {
       <div class="card__top">
         <h3 class="card__title">${esc(p.title)}</h3>
         <span class="tag tag--sub">찬반</span>
+        ${익명 ? `<span class="tag tag--anon">익명</span>` : ""}
         <span class="tag">${p.closed ? "마감됨" : `${Object.keys(p.votes).length}명 참여`}</span>
       </div>
       ${p.description ? `<p class="card__body">${esc(p.description)}</p>` : ""}
@@ -535,6 +550,7 @@ function renderDatePoll(p) {
   const max = Math.max(1, ...Object.values(counts));
   const mine = (myName && p.votes[myName]) || [];
   const voters = Object.keys(p.votes);
+  const 익명 = 익명투표(p);
 
   const opts = p.options.map((o) => {
     const c = counts[o.id];
@@ -547,7 +563,7 @@ function renderDatePoll(p) {
         <span>
           <span class="poll__date">${fmtWhen(o.date, o.time)}</span>
           ${o.note ? `<br><span class="poll__note">${esc(o.note)}</span>` : ""}
-          ${who.length ? `<br><span class="poll__note">${esc(who.join(", "))}</span>` : ""}
+          ${!익명 && who.length ? `<br><span class="poll__note">${esc(who.join(", "))}</span>` : ""}
         </span>
         <span class="poll__count">${c}표${won ? " · 확정" : ""}</span>
       </label>`;
@@ -566,6 +582,7 @@ function renderDatePoll(p) {
     <article class="card">
       <div class="card__top">
         <h3 class="card__title">${esc(p.title)}</h3>
+        ${익명 ? `<span class="tag tag--anon">익명</span>` : ""}
         <span class="tag">${p.closed ? "확정됨" : `${voters.length}명 참여`}</span>
       </div>
       ${p.description ? `<p class="card__body">${esc(p.description)}</p>` : ""}
@@ -859,6 +876,9 @@ function syncPollKind() {
   $("#pollTitleLabel").textContent = 문구[0];
   $("#pollTitleInput").placeholder = 문구[1];
   $("#pollDescInput").placeholder = 문구[2];
+
+  // 찬반은 민감할 때가 많아서 익명을 기본으로 켜 둠 (끌 수도 있음)
+  $("#pollAnonymous").checked = kind === "yesno";
 }
 
 /** 후보군 투표의 후보 한 줄 */
@@ -910,6 +930,7 @@ $("#pollForm").addEventListener("submit", (e) => {
   act(async () => {
     await api("POST", "/api/polls", {
       kind,
+      anonymous: f.elements.anonymous.checked,
       title: f.elements.title.value,
       description: f.elements.description.value,
       author: myName,

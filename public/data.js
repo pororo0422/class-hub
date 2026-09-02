@@ -315,6 +315,7 @@ async function route(method, url, b) {
 
       await addDoc(collection(db, "polls"), {
         kind,
+        anonymous: !!b.anonymous,
         title,
         description: clean(b.description, 500) || "",
         createdBy: clean(b.author, 40) || "익명",
