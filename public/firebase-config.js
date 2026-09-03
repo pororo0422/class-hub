@@ -21,4 +21,4 @@ export const firebaseConfig = {
  *
  * 주의: 이건 화면을 정리해 주는 용도일 뿐이야. 이 파일은 브라우저로
  * 내려가니까 마음먹고 찾아보면 누구나 볼 수 있어. 진짜 자물쇠가 아님. */
-export const ADMIN_KEY = "class3";
+export const ADMIN_KEY = "Hola guapo!";
